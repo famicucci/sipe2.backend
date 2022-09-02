@@ -91,6 +91,39 @@ exports.traerClientes = async (req, res) => {
 	}
 };
 
+exports.getClient = async (req, res) => {
+	try {
+		const clientes = await Cliente.findOne({
+			attributes: [
+				'id',
+				'nombre',
+				'apellido',
+				'observaciones',
+				'instagram',
+				'facebook',
+				'celular',
+				'email',
+				'mascota',
+				'tipo',
+				'dni',
+				'razonSocial',
+				'condIva',
+				'createdAt',
+				'updatedAt',
+			],
+			include: {
+				model: Direccion,
+				as: 'direcciones',
+				attributes: { exclude: ['ClienteId'] },
+			},
+			where: { id: req.params.Id },
+		});
+		res.json(clientes);
+	} catch (error) {
+		res.json(error);
+	}
+};
+
 exports.traerCliente = async (req, res) => {
 	console.log(req.params.Email);
 	try {
