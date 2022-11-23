@@ -568,9 +568,79 @@ exports.modificarOrden = async (req, res) => {
 			}
 		);
 
-		res
-			.status(200)
-			.send({ msg: 'La orden ha sido modificada!', severity: 'success' });
+		const ordenes = await Orden.findOne({
+			attributes: { exclude: ['ClienteId', 'UsuarioId'] },
+			include: [
+				{
+					model: Factura,
+					attributes: {
+						exclude: ['OrdenId', 'UsuarioId', 'tipo', 'estado', 'ClienteId'],
+					},
+					include: [
+						{
+							model: Cliente,
+							attributes: { exclude: ['EmpresaId', 'createdAt', 'updatedAt'] },
+						},
+						{
+							model: FacturaDetalle,
+							as: 'detalleFactura',
+							attributes: { exclude: ['FacturaId'] },
+							include: [
+								{
+									model: Producto,
+									attributes: ['descripcion'],
+								},
+							],
+						},
+						{
+							model: Pago,
+							attributes: {
+								exclude: ['FacturaId', 'UsuarioId', 'MetodoPagoId'],
+							},
+							include: { model: MetodoPago, attributes: ['id', 'descripcion'] },
+						},
+					],
+				},
+				{
+					model: Cliente,
+					attributes: { exclude: ['EmpresaId', 'createdAt', 'updatedAt'] },
+				},
+				{
+					model: Usuario,
+					attributes: ['usuario'],
+				},
+				{
+					model: OrdenDetalle,
+					as: 'detalleOrden',
+					attributes: {
+						exclude: ['OrdenId', 'PtoStockId'],
+					},
+					include: [
+						{ model: PtoStock, attributes: ['id', 'descripcion'] },
+						{
+							model: Producto,
+							attributes: ['descripcion'],
+						},
+					],
+				},
+				{
+					model: TipoEnvio,
+					attributes: ['id', 'descripcion'],
+				},
+				{
+					model: PtoVenta,
+					as: 'PtoVenta',
+					attributes: ['id', 'descripcion'],
+				},
+				{
+					model: OrdenEstado,
+					attributes: ['id', 'descripcion'],
+				},
+			],
+			where: { id: req.params.Id },
+		});
+
+		res.status(200).send(ordenes);
 	} catch (error) {
 		res.status(400).send({
 			msg: 'Hubo un error',
