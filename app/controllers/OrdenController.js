@@ -194,6 +194,12 @@ exports.traerOrdenes = async (req, res) => {
 			order: [['createdAt', 'DESC']],
 			include: [
 				{
+					model: TipoEnvio,
+					attributes: {
+						exclude: ['EmpresaId'],
+					},
+				},
+				{
 					model: Factura,
 					attributes: {
 						exclude: ['OrdenId', 'UsuarioId', 'tipo', 'estado', 'ClienteId'],
