@@ -1,9 +1,9 @@
-const { Pago, Factura } = require('../models/index');
+const { Pago, Factura, MetodoPago } = require('../models/index');
 const { sequelize } = require('../models/index');
 
 exports.crearPago = async (req, res) => {
 	try {
-		const pagos = await Pago.create({
+		const createdPayment = await Pago.create({
 			importe: req.body.importe,
 			FacturaId: req.body.FacturaId,
 			MetodoPagoId: req.body.MetodoPagoId,
@@ -42,7 +42,12 @@ exports.crearPago = async (req, res) => {
 				{ where: { id: req.body.FacturaId } }
 			);
 
-		res.json(pagos);
+		const payment = await Pago.findOne({
+			where: { id: createdPayment.id },
+			include: [{ model: MetodoPago }],
+		});
+
+		res.json(payment);
 	} catch (error) {
 		res.status(400).json({ msg: 'There was an error', severity: 'error' });
 	}
@@ -90,13 +95,18 @@ exports.cancelPayment = async (req, res) => {
 				{ transaction: t, where: { id: req.params.Id } }
 			);
 
+			const newPayment = await Pago.findOne({
+				include: [{ model: MetodoPago }],
+				where: { id: negativePayment.id },
+			});
+
 			await t.commit();
-			res.status(200).json(negativePayment);
+			res.status(200).json(newPayment);
 		} else {
 			await t.rollback();
 			res.status(400).json({ msg: 'Payment doesn´t exist', severity: 'error' });
 		}
 	} catch (error) {
-		res.status(400).json({ msg: 'There was an error', severity: 'error' });
+		res.status(400).json({ error });
 	}
 };

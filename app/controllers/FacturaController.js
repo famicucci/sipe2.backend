@@ -261,6 +261,7 @@ exports.traerFactura = async (req, res) => {
 					attributes: {
 						exclude: ['FacturaId', 'UsuarioId'],
 					},
+					include: [{ model: MetodoPago }],
 				},
 			],
 		});
