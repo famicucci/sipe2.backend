@@ -95,12 +95,13 @@ exports.cancelPayment = async (req, res) => {
 				{ transaction: t, where: { id: req.params.Id } }
 			);
 
+			await t.commit();
+
 			const newPayment = await Pago.findOne({
 				include: [{ model: MetodoPago }],
 				where: { id: negativePayment.id },
 			});
 
-			await t.commit();
 			res.status(200).json(newPayment);
 		} else {
 			await t.rollback();
