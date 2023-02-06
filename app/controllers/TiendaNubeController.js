@@ -1,5 +1,5 @@
 const axios = require('axios');
-const accessToken = '79391b0c9402d23f0a37ba9e912cbb85fa2ab48b';
+const accessToken = '055315562545107a230b84c253837e9b60b7d946';
 const apiUrl = 'https://api.tiendanube.com';
 
 const tiendaNubeAxios = axios.create({
