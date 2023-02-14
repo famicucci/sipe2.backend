@@ -154,7 +154,7 @@ exports.crearOrden = async (req, res) => {
 		}
 	} catch (error) {
 		await t.rollback();
-		res.status(400).send({ error: 'Hubo un error' });
+		res.status(400).send({ error });
 	}
 };
 
