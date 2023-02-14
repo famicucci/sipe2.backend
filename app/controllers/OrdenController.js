@@ -344,7 +344,86 @@ exports.crearOrderCheckingCustomer = async (req, res) => {
 				severity: 'warning',
 			});
 		} else {
-			res.json(orden);
+			const ordenes = await Orden.findOne({
+				attributes: {
+					exclude: ['ClienteId', 'UsuarioId', 'PtoVentaId', 'OrdenEstadoId'],
+				},
+				order: [['createdAt', 'DESC']],
+				include: [
+					{
+						model: TipoEnvio,
+						attributes: {
+							exclude: ['EmpresaId'],
+						},
+					},
+					{
+						model: Factura,
+						attributes: {
+							exclude: ['OrdenId', 'UsuarioId', 'tipo', 'estado', 'ClienteId'],
+						},
+						include: [
+							{
+								model: Cliente,
+								attributes: {
+									exclude: ['EmpresaId', 'createdAt', 'updatedAt'],
+								},
+							},
+							{
+								model: FacturaDetalle,
+								as: 'detalleFactura',
+								attributes: { exclude: ['FacturaId'] },
+								include: [
+									{
+										model: Producto,
+										attributes: ['descripcion'],
+									},
+								],
+							},
+							{
+								model: Pago,
+								attributes: {
+									exclude: ['FacturaId', 'UsuarioId'],
+								},
+							},
+						],
+					},
+					{
+						model: Cliente,
+						attributes: { exclude: ['EmpresaId', 'createdAt', 'updatedAt'] },
+						include: { model: Direccion, as: 'direcciones' },
+					},
+					{
+						model: Usuario,
+						attributes: ['usuario'],
+					},
+					{
+						model: OrdenDetalle,
+						as: 'detalleOrden',
+						attributes: {
+							exclude: ['OrdenId', 'PtoStockId'],
+						},
+						include: [
+							{ model: PtoStock, attributes: ['id', 'descripcion'] },
+							{
+								model: Producto,
+								attributes: ['descripcion'],
+							},
+						],
+					},
+					{
+						model: PtoVenta,
+						as: 'PtoVenta',
+						attributes: ['id', 'descripcion', 'PtoStockId'],
+					},
+					{
+						model: OrdenEstado,
+						attributes: ['id', 'descripcion'],
+					},
+				],
+				where: { id: orden.id },
+			});
+
+			res.status(200).json(ordenes);
 		}
 	} catch (error) {
 		await t.rollback();
