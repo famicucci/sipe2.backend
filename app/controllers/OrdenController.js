@@ -158,6 +158,200 @@ exports.crearOrden = async (req, res) => {
 	}
 };
 
+// create order from tienda nube
+exports.crearOrderCheckingCustomer = async (req, res) => {
+	const createCustomerIfNotExist = async (req) => {
+		let lastCustomer = null;
+		try {
+			const customer = await Cliente.findOne({
+				attributes: [
+					'id',
+					'nombre',
+					'apellido',
+					'observaciones',
+					'instagram',
+					'facebook',
+					'celular',
+					'email',
+					'mascota',
+					'tipo',
+					'dni',
+					'razonSocial',
+					'condIva',
+					'createdAt',
+					'updatedAt',
+				],
+				include: {
+					model: Direccion,
+					as: 'direcciones',
+					attributes: { exclude: ['ClienteId'] },
+				},
+				where: { email: req.body.customer.email },
+			});
+			lastCustomer = customer;
+
+			if (!customer) {
+				// debo crear un cliente
+				try {
+					const newCustomer = await Cliente.create({
+						nombre: req.body.customer.nombre,
+						apellido: req.body.customer.apellido,
+						celular: req.body.customer.celular,
+						email: req.body.customer.email,
+						tipo: req.body.customer.tipo,
+						dni: req.body.customer.dni,
+						razonSocial: req.body.customer.razonSocial,
+						condIva: req.body.customer.condIva,
+						EmpresaId: req.usuarioEmpresaId,
+					});
+					lastCustomer = newCustomer;
+				} catch (error) {
+					throw error;
+				}
+			}
+
+			return lastCustomer;
+		} catch (error) {
+			throw error;
+		}
+	};
+
+	// try {
+	// 	const getClient = await createCustomerIfNotExist(req);
+	// 	res.json(getClient.id);
+	// } catch (error) {
+	// 	res.status(400).send({ error });
+	// }
+
+	// acá empieza lo que ya estaba hecho de antes
+
+	// traer todos los stocks de productos
+	const stocks = await Stock.findAll({
+		attributes: { exclude: ['updatedAt'] },
+	});
+	let prodsSinStock = [];
+	let cantsFinales = [];
+	let detalleOrden = req.body.detalleOrden;
+	// verifico que detalle orden no tenga un producto en cero, si lo tiene lo elimino
+	detalleOrden = detalleOrden.filter((x) => x.cantidad !== 0);
+	for (let k = 0; k < detalleOrden.length; k++) {
+		const element = detalleOrden[k];
+		const cantProdCarr = element.cantidad;
+		// esto lo tiene que hacer si el producto esta disponible
+		if (element.PtoStockId !== null) {
+			const prodStock = stocks.find(
+				(x) =>
+					x.ProductoCodigo === element.ProductoCodigo &&
+					x.PtoStockId === element.PtoStockId
+			);
+			let cantProdStock;
+			if (prodStock) {
+				cantProdStock = prodStock.cantidad;
+			} else {
+				res.status(400).send({
+					msg: `El producto ${element.ProductoCodigo} o su punto de stock no se encuentran en la base de datos`,
+					severity: 'error',
+				});
+				return;
+			}
+			const cantfinal = cantProdStock - cantProdCarr;
+			// comparar cantidades con los productos del carrito para ver si estan disponibles
+			if (cantfinal < 0) {
+				prodsSinStock.push(element.ProductoCodigo);
+			} else {
+				cantsFinales.push({
+					ProductoCodigo: element.ProductoCodigo,
+					cantFinal: cantfinal,
+					PtoStockId: element.PtoStockId,
+				});
+			}
+		}
+	}
+	if (prodsSinStock.length > 0) {
+		res.status(400).send({ productWithoutStock: prodsSinStock });
+		return;
+	}
+	// rollback
+	const t = await sequelize.transaction();
+	try {
+		// debe hacer los movimientos de stock
+		// si todo va bien hacer un ciclo for con un update para cada producto
+		for (let i = 0; i < cantsFinales.length; i++) {
+			const element = cantsFinales[i];
+			await Stock.update(
+				{ cantidad: element.cantFinal },
+				{
+					transaction: t,
+					where: {
+						ProductoCodigo: element.ProductoCodigo,
+						PtoStockId: element.PtoStockId,
+					},
+				}
+			);
+		}
+
+		const getClient = await createCustomerIfNotExist(req);
+
+		// crea la orden
+		const orden = await Orden.create(
+			{
+				observaciones: req.body.observaciones,
+				direccionEnvio: req.body.direccionEnvio,
+				tarifaEnvio: req.body.tarifaEnvio,
+				ordenEcommerce: !req.body.ordenEcommerce
+					? null
+					: req.body.ordenEcommerce,
+				ClienteId: getClient.id,
+				PtoVentaId: req.body.PtoVentaId,
+				UsuarioId: req.usuarioId,
+				OrdenEstadoId: req.body.OrdenEstadoId,
+				TipoEnvioId: req.body.TipoEnvioId,
+				detalleOrden: detalleOrden,
+			},
+			{
+				include: 'detalleOrden',
+				transaction: t,
+			}
+		);
+		// crear los movimientos de stock
+		for (let k = 0; k < detalleOrden.length; k++) {
+			const element = detalleOrden[k];
+			const cantProdCarr = element.cantidad;
+			const cod = element.ProductoCodigo;
+			const ptoStockId = element.PtoStockId;
+			if (ptoStockId !== null) {
+				await MovimientoStock.create(
+					{
+						cantidad: cantProdCarr,
+						motivo: 'venta',
+						ProductoCodigo: cod,
+						PtoStockId: ptoStockId,
+						UsuarioId: req.usuarioId,
+					},
+					{
+						transaction: t,
+					}
+				);
+			}
+		}
+		await t.commit();
+		if (prodsSinStock.length > 0) {
+			res.json({
+				orden: orden,
+				msg: `Los productos ${prodsSinStock.map(
+					(x) => `${x} `
+				)}fueron eliminados del carrito por no contar con unidades suficientes`,
+				severity: 'warning',
+			});
+		} else {
+			res.json(orden);
+		}
+	} catch (error) {
+		await t.rollback();
+		res.status(400).send({ error });
+	}
+};
+
 // create an order without remove stocks
 exports.createOrderSimple = async (req, res) => {
 	try {
