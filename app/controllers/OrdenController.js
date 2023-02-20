@@ -268,7 +268,13 @@ exports.crearOrderCheckingCustomer = async (req, res) => {
 		}
 	}
 	if (prodsSinStock.length > 0) {
-		res.status(400).send({ productWithoutStock: prodsSinStock });
+		// res.status(400).send({ productWithoutStock: prodsSinStock });
+		res.status(400).send({
+			msg: `Los productos ${prodsSinStock.map(
+				(code) => `${code},`
+			)} no tienen stock suficiente`,
+			severity: 'error',
+		});
 		return;
 	}
 	// rollback
