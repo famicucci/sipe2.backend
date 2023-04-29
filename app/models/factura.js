@@ -36,7 +36,7 @@ module.exports = (sequelize, DataTypes) => {
 			observaciones: { type: DataTypes.STRING(120) },
 			estadoPago: { type: DataTypes.STRING(15), allowNull: false },
 			importe: { type: DataTypes.DECIMAL(10, 2), allowNull: false },
-			descuento: DataTypes.DECIMAL(5, 2),
+			descuento: DataTypes.DECIMAL(10, 2),
 			tarifaEnvio: { type: DataTypes.DECIMAL(10, 2), allowNull: false },
 			importeFinal: { type: DataTypes.DECIMAL(10, 2), allowNull: false },
 			tipo: DataTypes.STRING(3),
