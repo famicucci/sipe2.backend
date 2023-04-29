@@ -38,11 +38,45 @@ exports.crearFactura = async (req, res) => {
 				transaction: t,
 			}
 		);
+
 		await t.commit();
-		res.status(200).json(factura);
+
+		// agregar un get para obtener la factura tal cuál se obtiene en el get by id
+		const invoice = await Factura.findOne({
+			where: { id: factura.id },
+			attributes: {
+				exclude: ['OrdenId', 'UsuarioId', 'tipo', 'estado', 'ClienteId'],
+			},
+			include: [
+				{
+					model: Cliente,
+					attributes: { exclude: ['EmpresaId', 'createdAt', 'updatedAt'] },
+				},
+				{
+					model: FacturaDetalle,
+					as: 'detalleFactura',
+					attributes: { exclude: ['FacturaId'] },
+					include: [
+						{
+							model: Producto,
+							attributes: ['descripcion'],
+						},
+					],
+				},
+				{
+					model: Pago,
+					attributes: {
+						exclude: ['FacturaId', 'UsuarioId'],
+					},
+					include: [{ model: MetodoPago }],
+				},
+			],
+		});
+
+		res.status(200).json(invoice);
 	} catch (error) {
 		await t.rollback();
-		res.status(400).json(error);
+		res.status(400).json({ error });
 	}
 };
 
