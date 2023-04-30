@@ -45,7 +45,7 @@ exports.crearFactura = async (req, res) => {
 		const invoice = await Factura.findOne({
 			where: { id: factura.id },
 			attributes: {
-				exclude: ['OrdenId', 'UsuarioId', 'tipo', 'estado', 'ClienteId'],
+				exclude: ['UsuarioId', 'tipo', 'estado', 'ClienteId'],
 			},
 			include: [
 				{
