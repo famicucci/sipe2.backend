@@ -40,7 +40,9 @@ exports.modificarStock = async (req, res) => {
 exports.traerOrdenes = async (req, res) => {
 	try {
 		const r = await tiendaNubeAxios.get('/v1/1894966/orders');
-		res.status(200).json(r.data);
+		// filter orders with status open
+		const orders = r.data.filter((order) => order.status === 'open');
+		res.status(200).json(orders);
 	} catch (error) {
 		res.status(400).json(error);
 	}
